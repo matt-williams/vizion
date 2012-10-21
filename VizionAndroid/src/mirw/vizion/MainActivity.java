@@ -26,8 +26,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, GL
     private volatile byte[] mBufferData;
     private volatile int mBufferWidth;
     private volatile int mBufferHeight;
-    private Texture mTexture;
+    private Texture mCameraTexture;
+    private Texture mFramebuffer;
     private Program mProgram;
+    private Program mProgram2;
   
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -105,32 +107,54 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, GL
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         GLES20.glDisable(GLES20.GL_DITHER);
+        Utils.checkErrors("glDisable");
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        Utils.checkErrors("glDepthTest");
+        GLES20.glDepthMask(false);
+        Utils.checkErrors("glDepthMask");
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        Utils.checkErrors("glActiveTexture");
 
         mProgram = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
                                new FragmentShader(getResources().getString(R.string.fragmentShader)));
         mProgram.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
-        mProgram.setUniform("tex", 0);
-        mTexture = new Texture(0, 0);
+        mProgram.setUniform("t", 0);
+        mProgram2 = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
+                                new FragmentShader(getResources().getString(R.string.fragmentShader2)));
+        mProgram2.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
+        mProgram2.setUniform("t", 0);
+        mCameraTexture = new Texture(0, 0);
+        mFramebuffer = new Texture(0, 0);
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         GLES20.glViewport(0, 0, width, height);
+        Utils.checkErrors("glViewport");
     }
 
     public void onDrawFrame(GL10 gl) {
         if (mBufferData != null) {
-            mTexture.setSize(mBufferWidth, mBufferHeight);
-            mTexture.setData(mBufferData);
+            mCameraTexture.setSize(mBufferWidth, mBufferHeight);
+            mCameraTexture.setData(mBufferData);
+            mFramebuffer.setSize(mBufferWidth, mBufferHeight);
             mProgram.setUniform("duv", 1.0f/mBufferWidth, 1.0f/mBufferHeight);
             byte[] buffer = mBufferData;
             mBufferData = null;
             mCamera.addCallbackBuffer(buffer);
         }
+        
 //        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        mTexture.use();
+        mFramebuffer.renderTo();
+        mCameraTexture.use();
         mProgram.use();
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+        Utils.checkErrors("glDrawArrays");
+        
+        Texture.renderToScreen();
+        mFramebuffer.use();
+        mProgram2.use();
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+        Utils.checkErrors("glDrawArrays");
     }
 
     // Camera.PreviewCallback ------------------------------------------------- 

@@ -29,6 +29,7 @@ public final class R {
     public static final class string {
         public static final int app_name=0x7f050000;
         public static final int fragmentShader=0x7f050003;
+        public static final int fragmentShader2=0x7f050004;
         public static final int title_activity_main=0x7f050001;
         public static final int vertexShader=0x7f050002;
     }

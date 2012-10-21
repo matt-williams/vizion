@@ -37,4 +37,21 @@ void main() {
   gl_FragColor = pix(grad(uv, duv));
 }
 ]]></string>
+
+<string name="fragmentShader2"><![CDATA[
+varying highp vec2 uv;
+uniform sampler2D t;
+
+highp float luma(highp vec2 pos) {
+  return dot(texture2D(t, pos).rgb, vec3(0.2126, 0.7152, 0.0722));
+}
+
+highp vec4 pix(highp float val) {
+  return vec4(val, val, val, 1);
+}
+
+void main() {
+  gl_FragColor = pix(1.0 - luma(uv));
+}
+]]></string>
 </resources>
