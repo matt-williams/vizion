@@ -27,9 +27,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, GL
     private volatile int mBufferWidth;
     private volatile int mBufferHeight;
     private Texture mCameraTexture;
-    private Texture mFramebuffer;
-    private Program mProgram;
-    private Program mProgram2;
+    private Texture mFrontBuffer;
+    private Texture mBackBuffer;
+    private Program mAccumulationProgram;
+    private Program mDisplayProgram;
+    private int mGLWidth;
+    private int mGLHeight;
   
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -112,49 +115,55 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, GL
         Utils.checkErrors("glDepthTest");
         GLES20.glDepthMask(false);
         Utils.checkErrors("glDepthMask");
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        Utils.checkErrors("glActiveTexture");
 
-        mProgram = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
-                               new FragmentShader(getResources().getString(R.string.fragmentShader)));
-        mProgram.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
-        mProgram.setUniform("t", 0);
-        mProgram2 = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
-                                new FragmentShader(getResources().getString(R.string.fragmentShader2)));
-        mProgram2.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
-        mProgram2.setUniform("t", 0);
+        mAccumulationProgram = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
+                               new FragmentShader(getResources().getString(R.string.accumulationFragmentShader)));
+        mAccumulationProgram.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
+        mAccumulationProgram.setUniform("cam", 0);
+        mAccumulationProgram.setUniform("old", 1);
+        mDisplayProgram = new Program(new VertexShader(getResources().getString(R.string.vertexShader)),
+                                new FragmentShader(getResources().getString(R.string.displayFragmentShader)));
+        mDisplayProgram.setVertexAttrib("xy", new float[] {-1, -1, 1, -1, -1, 1, 1, 1}, 2);
+        mDisplayProgram.setUniform("tex", 0);
         mCameraTexture = new Texture(0, 0);
-        mFramebuffer = new Texture(0, 0);
+        mFrontBuffer = new Texture(0, 0);
+        mBackBuffer = new Texture(0, 0);
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {
-        GLES20.glViewport(0, 0, width, height);
         Utils.checkErrors("glViewport");
+        mGLWidth = width;
+        mGLHeight = height;
     }
 
     public void onDrawFrame(GL10 gl) {
         if (mBufferData != null) {
             mCameraTexture.setSize(mBufferWidth, mBufferHeight);
             mCameraTexture.setData(mBufferData);
-            mFramebuffer.setSize(mBufferWidth, mBufferHeight);
-            mProgram.setUniform("duv", 1.0f/mBufferWidth, 1.0f/mBufferHeight);
+            mFrontBuffer.setSize(mBufferWidth, mBufferHeight);
+            mFrontBuffer.renderTo();
+            mBackBuffer.setSize(mBufferWidth, mBufferHeight);
             byte[] buffer = mBufferData;
             mBufferData = null;
             mCamera.addCallbackBuffer(buffer);
         }
         
-//        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        mFramebuffer.renderTo();
-        mCameraTexture.use();
-        mProgram.use();
+        mBackBuffer.renderTo();
+        mCameraTexture.use(GLES20.GL_TEXTURE0);
+        mFrontBuffer.use(GLES20.GL_TEXTURE1);
+        mAccumulationProgram.use();
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         Utils.checkErrors("glDrawArrays");
         
-        Texture.renderToScreen();
-        mFramebuffer.use();
-        mProgram2.use();
+        Texture.renderToScreen(mGLWidth, mGLHeight);
+        mBackBuffer.use(GLES20.GL_TEXTURE0);
+        mDisplayProgram.use();
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         Utils.checkErrors("glDrawArrays");
+        
+        Texture buffer = mBackBuffer;
+        mBackBuffer = mFrontBuffer;
+        mFrontBuffer = buffer;
     }
 
     // Camera.PreviewCallback ------------------------------------------------- 

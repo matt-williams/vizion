@@ -45,8 +45,11 @@ public class Texture {
         }
     }
     
-    public void use() {
+    public void use(int channel) {
+        GLES20.glActiveTexture(channel);
+        Utils.checkErrors("glActiveTexture");
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mId);
+        Utils.checkErrors("glBindTexture");
     }
     
     public void renderTo() {
@@ -63,10 +66,15 @@ public class Texture {
         if (status != GLES20.GL_FRAMEBUFFER_COMPLETE) {
             throw new IllegalStateException("GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) returned " + status);
         }
+        GLES20.glViewport(0, 0, mWidth, mHeight);
+        Utils.checkErrors("glViewport");
     }
 
-    public static void renderToScreen() {
+    public static void renderToScreen(int width, int height) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+        Utils.checkErrors("glBindFramebuffer");
+        GLES20.glViewport(0, 0, width, height);
+        Utils.checkErrors("glViewport");
     }
     
     public void setData(byte[] data) {
